@@ -279,8 +279,16 @@ AsmToken AsmLexer::LexSingleQuote() {
 
   CurChar = getNextChar();
 
-  if (CurChar != '\'')
-    return ReturnError(TokStart, "single quote way too long");
+  if (CurChar != '\'') {
+    while (CurChar != '\'') {
+      if (CurChar == EOF)
+        return ReturnError(TokStart, "unterminated string constant");
+
+      CurChar = getNextChar();
+    }
+
+    return AsmToken(AsmToken::String, StringRef(TokStart, CurPtr - TokStart));
+  }
 
   // The idea here being that 'c' is basically just an integral
   // constant.
