@@ -324,7 +324,7 @@ private:
                                     MCSymbolRefExpr::VariantKind Variant);
 
   // Macro-like directives
-  Macro *ParseMacroLikeBody(SMLoc DirectiveLoc);
+  Macro *ParseMacroLikeBody(SMLoc DirectiveLoc, MacroParameters &Parameters);
   void InstantiateMacroLikeBody(Macro *M, SMLoc DirectiveLoc,
                                 raw_svector_ostream &OS);
   bool ParseDirectiveRept(SMLoc DirectiveLoc); // ".rept"
@@ -3412,7 +3412,10 @@ bool GenericAsmParser::ParseDirectiveLEB128(StringRef DirName, SMLoc) {
   return false;
 }
 
-Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc) {
+// Helper functions for parsing macro-like directives
+
+Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc,
+                                     MacroParameters &Parameters) {
   AsmToken EndToken, StartToken = getTok();
 
   unsigned NestLevel = 0;
@@ -3424,7 +3427,9 @@ Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc) {
     }
 
     if (Lexer.is(AsmToken::Identifier) &&
-        (getTok().getIdentifier() == ".rept")) {
+        (getTok().getIdentifier() == ".rept" ||
+         getTok().getIdentifier() == ".irp" ||
+         getTok().getIdentifier() == ".irpc")) {
       ++NestLevel;
     }
 
@@ -3453,7 +3458,6 @@ Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc) {
 
   // We Are Anonymous.
   StringRef Name;
-  MacroParameters Parameters;
   return new Macro(Name, Body, Parameters);
 }
 
@@ -3492,14 +3496,14 @@ bool AsmParser::ParseDirectiveRept(SMLoc DirectiveLoc) {
   Lex();
 
   // Lex the rept definition.
-  Macro *M = ParseMacroLikeBody(DirectiveLoc);
+  MacroParameters Parameters;
+  Macro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
   if (!M)
     return true;
 
   // Macro instantiation is lexical, unfortunately. We construct a new buffer
   // to hold the macro body with substitutions.
   SmallString<256> Buf;
-  MacroParameters Parameters;
   MacroArguments A;
   raw_svector_ostream OS(Buf);
   while (Count--) {
@@ -3535,7 +3539,7 @@ bool AsmParser::ParseDirectiveIrp(SMLoc DirectiveLoc) {
   Lex();
 
   // Lex the irp definition.
-  Macro *M = ParseMacroLikeBody(DirectiveLoc);
+  Macro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
   if (!M)
     return true;
 
@@ -3584,7 +3588,7 @@ bool AsmParser::ParseDirectiveIrpc(SMLoc DirectiveLoc) {
   Lex();
 
   // Lex the irpc definition.
-  Macro *M = ParseMacroLikeBody(DirectiveLoc);
+  Macro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
   if (!M)
     return true;
 
