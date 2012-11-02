@@ -18,6 +18,7 @@
 # vim swap files
 .*.swp
 .sw?
+*.inc
 
 #==============================================================================#
 # Explicit files to ignore (only matches one).
@@ -29,7 +30,31 @@ cscope.out
 autoconf/aclocal.m4
 autoconf/autom4te.cache
 compile_commands.json
-
+config.log
+config.status
+Makefile.config
+Makefile.llvmbuild
+bindings/ocaml/llvm/META.llvm
+docs/doxygen.cfg
+docs/html.tar.gz
+include/llvm/Config/AsmParsers.def
+include/llvm/Config/AsmPrinters.def
+include/llvm/Config/Disassemblers.def
+include/llvm/Config/Targets.def
+include/llvm/Config/config.h
+include/llvm/Config/llvm-config.h
+include/llvm/Intrinsics.gen
+include/llvm/Support/DataTypes.h
+llvm.spec
+projects/sample/Makefile.common
+projects/sample/Makefile.llvm.config
+test/Other/cfg.foo.dot
+test/Unit/.dir
+test/Unit/lit.site.cfg
+test/lit.site.cfg
+test/lit.tmp
+unittests/ExecutionEngine/JIT/.dir
+unittests/ExecutionEngine/JIT/JITTests.exports
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).
 #==============================================================================#
@@ -46,3 +71,6 @@ tools/lldb
 tools/lld
 # Sphinx build tree, if building in-source dir.
 docs/_build
+Debug+Asserts
+Release+Asserts
+Output
