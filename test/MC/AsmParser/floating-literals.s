@@ -42,3 +42,8 @@
 // APFloat should reject these with an error, not crash:
 //.double -1.2e+
 //.double -1.2e
+
+// CHECK:        .quad   8152436061454349398
+// CHECK:        .quad   81985529206420566
+.octa 0x1234567891234567123456789123456
+
