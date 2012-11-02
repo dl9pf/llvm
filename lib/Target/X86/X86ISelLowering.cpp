@@ -2499,6 +2499,7 @@ X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       // has hidden or protected visibility, or if it is static or local, then
       // we don't need to use the PLT - we can directly call it.
       if (Subtarget->isTargetELF() &&
+          getTargetMachine().getCodeModel() != CodeModel::Kernel &&
           getTargetMachine().getRelocationModel() == Reloc::PIC_ &&
           GV->hasDefaultVisibility() && !GV->hasLocalLinkage()) {
         OpFlags = X86II::MO_PLT;
@@ -2511,6 +2512,7 @@ X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
         // automatically synthesizes these stubs.
         OpFlags = X86II::MO_DARWIN_STUB;
       } else if (Subtarget->isPICStyleRIPRel() &&
+                 getTargetMachine().getCodeModel() != CodeModel::Kernel &&
                  isa<Function>(GV) &&
                  cast<Function>(GV)->getFnAttributes().
                    hasAttribute(Attributes::NonLazyBind)) {
@@ -2540,6 +2542,7 @@ X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     // On ELF targets, in either X86-64 or X86-32 mode, direct calls to
     // external symbols should go through the PLT.
     if (Subtarget->isTargetELF() &&
+        getTargetMachine().getCodeModel() != CodeModel::Kernel &&
         getTargetMachine().getRelocationModel() == Reloc::PIC_) {
       OpFlags = X86II::MO_PLT;
     } else if (Subtarget->isPICStyleStubAny() &&
@@ -3076,7 +3079,7 @@ bool X86::isOffsetSuitableForCodeModel(int64_t Offset, CodeModel::Model M,
   // For kernel code model we know that all object resist in the negative half
   // of 32bits address space. We may not accept negative offsets, since they may
   // be just off and we may accept pretty large positive ones.
-  if (M == CodeModel::Kernel && Offset > 0)
+  if (M == CodeModel::Kernel && (Offset > 0 || Offset < -2LL*1024*1024*1024+16*1024*1024))
     return true;
 
   return false;
@@ -12072,7 +12075,7 @@ bool X86TargetLowering::isLegalAddressingMode(const AddrMode &AM,
       return false;
 
     // If lower 4G is not available, then we must use rip-relative addressing.
-    if ((M != CodeModel::Small || R != Reloc::Static) &&
+    if (((M != CodeModel::Small && M != CodeModel::Kernel) || R != Reloc::Static) &&
         Subtarget->is64Bit() && (AM.BaseOffs || AM.Scale > 1))
       return false;
   }

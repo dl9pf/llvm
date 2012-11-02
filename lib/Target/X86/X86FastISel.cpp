@@ -484,7 +484,7 @@ bool X86FastISel::X86SelectAddress(const Value *V, X86AddressMode &AM) {
   // Handle constant address.
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
     // Can't handle alternate code models yet.
-    if (TM.getCodeModel() != CodeModel::Small)
+    if (TM.getCodeModel() != CodeModel::Small && TM.getCodeModel() != CodeModel::Kernel)
       return false;
 
     // Can't handle TLS yet.
@@ -630,7 +630,7 @@ bool X86FastISel::X86SelectCallAddress(const Value *V, X86AddressMode &AM) {
   // Handle constant address.
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
     // Can't handle alternate code models yet.
-    if (TM.getCodeModel() != CodeModel::Small)
+    if (TM.getCodeModel() != CodeModel::Small && TM.getCodeModel() != CodeModel::Kernel)
       return false;
 
     // RIP-relative addresses can't have additional register operands.
@@ -1858,6 +1858,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
     // has hidden or protected visibility, or if it is static or local, then
     // we don't need to use the PLT - we can directly call it.
     if (Subtarget->isTargetELF() &&
+        TM.getCodeModel() != CodeModel::Kernel &&
         TM.getRelocationModel() == Reloc::PIC_ &&
         GV->hasDefaultVisibility() && !GV->hasLocalLinkage()) {
       OpFlags = X86II::MO_PLT;
@@ -2117,7 +2118,7 @@ unsigned X86FastISel::TargetMaterializeConstant(const Constant *C) {
     OpFlag = X86II::MO_GOTOFF;
     PICBase = getInstrInfo()->getGlobalBaseReg(FuncInfo.MF);
   } else if (Subtarget->isPICStyleRIPRel() &&
-             TM.getCodeModel() == CodeModel::Small) {
+             (TM.getCodeModel() == CodeModel::Small || TM.getCodeModel() == CodeModel::Kernel)) {
     PICBase = X86::RIP;
   }
 
