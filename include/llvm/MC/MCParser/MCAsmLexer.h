@@ -10,6 +10,7 @@
 #ifndef LLVM_MC_MCASMLEXER_H
 #define LLVM_MC_MCASMLEXER_H
 
+#include "llvm/ADT/APInt.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
@@ -60,12 +61,14 @@ private:
   /// a memory buffer owned by the source manager.
   StringRef Str;
 
-  int64_t IntVal;
+  APInt IntVal;
 
 public:
   AsmToken() {}
-  AsmToken(TokenKind _Kind, StringRef _Str, int64_t _IntVal = 0)
+  AsmToken(TokenKind _Kind, StringRef _Str, APInt _IntVal)
     : Kind(_Kind), Str(_Str), IntVal(_IntVal) {}
+  AsmToken(TokenKind _Kind, StringRef _Str, int64_t _IntVal = 0)
+    : Kind(_Kind), Str(_Str), IntVal(64, _IntVal, true) {}
 
   TokenKind getKind() const { return Kind; }
   bool is(TokenKind K) const { return Kind == K; }
@@ -102,15 +105,21 @@ public:
   // as a single token, then diagnose as an invalid number).
   int64_t getIntVal() const {
     assert(Kind == Integer && "This token isn't an integer!");
-    return IntVal;
+    return IntVal.getZExtValue();
   }
 
   /// getRegVal - Get the register number for the current token, which should
   /// be a register.
   unsigned getRegVal() const {
     assert(Kind == Register && "This token isn't a register!");
-    return static_cast<unsigned>(IntVal);
+    return static_cast<unsigned>(IntVal.getZExtValue());
   }
+
+  APInt getAPIntVal() const {
+    assert(Kind == Integer && "This token isn't an integer!");
+    return IntVal;
+  }
+
 };
 
 /// MCAsmLexer - Generic assembler lexer interface, for use by target specific
