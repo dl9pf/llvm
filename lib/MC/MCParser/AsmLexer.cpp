@@ -239,7 +239,7 @@ AsmToken AsmLexer::LexDigit() {
     if (CurPtr == NumStart)
       return ReturnError(CurPtr-2, "invalid hexadecimal number");
 
-    unsigned long long Result;
+    APInt Result(128, 0);
     if (StringRef(TokStart, CurPtr - TokStart).getAsInteger(0, Result))
       return ReturnError(TokStart, "invalid hexadecimal number");
 
@@ -248,7 +248,7 @@ AsmToken AsmLexer::LexDigit() {
     SkipIgnoredIntegerSuffix(CurPtr);
 
     return AsmToken(AsmToken::Integer, StringRef(TokStart, CurPtr - TokStart),
-                    (int64_t)Result);
+                    Result);
   }
 
   // Must be an octal number, it starts with 0.

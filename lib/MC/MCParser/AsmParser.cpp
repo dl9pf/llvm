@@ -286,6 +286,7 @@ private:
  // ".ascii", ".asciiz", ".string"
   bool ParseDirectiveAscii(StringRef IDVal, bool ZeroTerminated);
   bool ParseDirectiveValue(unsigned Size); // ".byte", ".long", ...
+  bool ParseDirectiveOctaValue(); // ".octa"
   bool ParseDirectiveRealValue(const fltSemantics &); // ".single", ...
   bool ParseDirectiveFill(); // ".fill"
   bool ParseDirectiveSpace(); // ".space"
@@ -1257,6 +1258,8 @@ bool AsmParser::ParseStatement(ParseStatementInfo &Info) {
       return ParseDirectiveValue(8);
     if (IDVal == ".8byte")
       return ParseDirectiveValue(8);
+    if (IDVal == ".octa")
+      return ParseDirectiveOctaValue();
     if (IDVal == ".single" || IDVal == ".float")
       return ParseDirectiveRealValue(APFloat::IEEEsingle);
     if (IDVal == ".double")
@@ -2110,6 +2113,42 @@ bool AsmParser::ParseDirectiveValue(unsigned Size) {
         getStreamer().EmitIntValue(IntValue, Size, DEFAULT_ADDRSPACE);
       } else
         getStreamer().EmitValue(Value, Size, DEFAULT_ADDRSPACE);
+
+      if (getLexer().is(AsmToken::EndOfStatement))
+        break;
+
+      // FIXME: Improve diagnostic.
+      if (getLexer().isNot(AsmToken::Comma))
+        return TokError("unexpected token in directive");
+      Lex();
+    }
+  }
+
+  Lex();
+  return false;
+}
+
+/// ParseDirectiveOctaValue
+///  ::= .octa [ hexconstant (, hexconstant)* ]
+bool AsmParser::ParseDirectiveOctaValue() {
+  if (getLexer().isNot(AsmToken::EndOfStatement)) {
+    CheckForValidSection();
+
+    for (;;) {
+      if (Lexer.getKind() != AsmToken::Integer)
+        return TokError("unknown token in expression");
+
+      APInt IntValue = getTok().getAPIntVal();
+      Lex();
+
+      assert(IntValue.isIntN(128) && "Invalid .octa constant");
+      if (MAI.isLittleEndian()) {
+        getStreamer().EmitIntValue(IntValue.getLoBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
+        getStreamer().EmitIntValue(IntValue.getHiBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
+      } else {
+        getStreamer().EmitIntValue(IntValue.getHiBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
+        getStreamer().EmitIntValue(IntValue.getLoBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
+      }
 
       if (getLexer().is(AsmToken::EndOfStatement))
         break;
