@@ -1188,10 +1188,42 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
     } else {
       unsigned FixupKind;
       // FIXME: Is there a better way to know that we need a signed relocation?
-      if (MI.getOpcode() == X86::ADD64ri32 ||
-          MI.getOpcode() == X86::MOV64ri32 ||
-          MI.getOpcode() == X86::MOV64mi32 ||
-          MI.getOpcode() == X86::PUSH64i32)
+//      if (is64BitMode() && X86II::getSizeOfImm(TSFlags) == 4 &&
+//          ((MemoryOperand != -1 && Is64BitMemOperand(MI, MemoryOperand)) ||
+//           (<check for 64 bit register operand>)))
+//grep "^  {.*ImmSExti64i32" lib/Target/X86/X86GenAsmMatcher.inc | awk '{print $6}' | sort -u | sed -e 's/\(.*\),/            MI.getOpcode() == \1 ||/'
+       if (MI.getOpcode() == X86::ADC64i32 ||
+           MI.getOpcode() == X86::ADC64mi32 ||
+           MI.getOpcode() == X86::ADC64ri32 ||
+           MI.getOpcode() == X86::ADD64i32 ||
+           MI.getOpcode() == X86::ADD64mi32 ||
+           MI.getOpcode() == X86::ADD64ri32 ||
+           MI.getOpcode() == X86::AND64i32 ||
+           MI.getOpcode() == X86::AND64mi32 ||
+           MI.getOpcode() == X86::AND64ri32 ||
+           MI.getOpcode() == X86::CMP64i32 ||
+           MI.getOpcode() == X86::CMP64mi32 ||
+           MI.getOpcode() == X86::CMP64ri32 ||
+           MI.getOpcode() == X86::IMUL64rmi32 ||
+           MI.getOpcode() == X86::IMUL64rri32 ||
+           MI.getOpcode() == X86::MOV64mi32 ||
+           MI.getOpcode() == X86::MOV64ri32 ||
+           MI.getOpcode() == X86::OR64i32 ||
+           MI.getOpcode() == X86::OR64mi32 ||
+           MI.getOpcode() == X86::OR64ri32 ||
+           MI.getOpcode() == X86::PUSH64i32 ||
+           MI.getOpcode() == X86::SBB64i32 ||
+           MI.getOpcode() == X86::SBB64mi32 ||
+           MI.getOpcode() == X86::SBB64ri32 ||
+           MI.getOpcode() == X86::SUB64i32 ||
+           MI.getOpcode() == X86::SUB64mi32 ||
+           MI.getOpcode() == X86::SUB64ri32 ||
+           MI.getOpcode() == X86::TEST64i32 ||
+           MI.getOpcode() == X86::TEST64mi32 ||
+           MI.getOpcode() == X86::TEST64ri32 ||
+           MI.getOpcode() == X86::XOR64i32 ||
+           MI.getOpcode() == X86::XOR64mi32 ||
+           MI.getOpcode() == X86::XOR64ri32)
         FixupKind = X86::reloc_signed_4byte;
       else
         FixupKind = getImmFixupKind(TSFlags);
