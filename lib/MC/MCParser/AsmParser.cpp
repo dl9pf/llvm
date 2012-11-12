@@ -325,7 +325,7 @@ private:
                                     MCSymbolRefExpr::VariantKind Variant);
 
   // Macro-like directives
-  Macro *ParseMacroLikeBody(SMLoc DirectiveLoc);
+  Macro *ParseMacroLikeBody(SMLoc DirectiveLoc, MacroParameters &Parameters);
   void InstantiateMacroLikeBody(Macro *M, SMLoc DirectiveLoc,
                                 raw_svector_ostream &OS);
   bool ParseDirectiveRept(SMLoc DirectiveLoc); // ".rept"
@@ -1559,7 +1559,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &OS, StringRef Body,
     std::size_t End = Body.size(), Pos = 0;
     for (; Pos != End; ++Pos) {
       // Check for a substitution or escape.
-      if (!NParameters) {
+      if (IsDarwin && !NParameters) {
         // This macro has no parameters, look for $0, $1, etc.
         if (Body[Pos] != '$' || Pos + 1 == End)
           continue;
@@ -1567,7 +1567,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &OS, StringRef Body,
         char Next = Body[Pos + 1];
         if (Next == '$' || Next == 'n' || isdigit(Next))
           break;
-      } else {
+      } else if (NParameters) {
         // This macro has parameters, look for \foo, \bar, etc.
         if (Body[Pos] == '\\' && Pos + 1 != End)
           break;
@@ -1581,7 +1581,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &OS, StringRef Body,
     if (Pos == End)
       break;
 
-    if (!NParameters) {
+    if (IsDarwin && !NParameters) {
       switch (Body[Pos+1]) {
         // $$ => $
       case '$':
@@ -1608,7 +1608,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &OS, StringRef Body,
       }
       }
       Pos += 2;
-    } else {
+    } else if (NParameters) {
       unsigned I = Pos + 1;
       while (isIdentifierChar(Body[I]) && I + 1 != End)
         ++I;
@@ -1804,6 +1804,8 @@ bool AsmParser::ParseMacroArguments(const Macro *M, MacroArguments &A) {
     if (Lexer.is(AsmToken::Comma))
       Lex();
   }
+  if (Lexer.is(AsmToken::EndOfStatement))
+    return false;
   return TokError("Too many arguments");
 }
 
@@ -3391,21 +3393,30 @@ bool GenericAsmParser::ParseDirectiveMacro(StringRef Directive,
   AsmToken EndToken, StartToken = getTok();
 
   // Lex the macro definition.
+  unsigned NestLevel = 0;
   for (;;) {
     // Check whether we have reached the end of the file.
     if (getLexer().is(AsmToken::Eof))
       return Error(DirectiveLoc, "no matching '.endmacro' in definition");
 
+    if (getLexer().is(AsmToken::Identifier) &&
+         getTok().getIdentifier() == ".macro") {
+      ++NestLevel;
+    }
+
     // Otherwise, check whether we have reach the .endmacro.
     if (getLexer().is(AsmToken::Identifier) &&
         (getTok().getIdentifier() == ".endm" ||
          getTok().getIdentifier() == ".endmacro")) {
-      EndToken = getTok();
-      Lex();
-      if (getLexer().isNot(AsmToken::EndOfStatement))
-        return TokError("unexpected token in '" + EndToken.getIdentifier() +
-                        "' directive");
-      break;
+      if (NestLevel == 0) {
+        EndToken = getTok();
+        Lex();
+        if (getLexer().isNot(AsmToken::EndOfStatement))
+          return TokError("unexpected token in '" + EndToken.getIdentifier() +
+                          "' directive");
+        break;
+      }
+      --NestLevel;
     }
 
     // Otherwise, scan til the end of the statement.
@@ -3484,7 +3495,10 @@ bool GenericAsmParser::ParseDirectiveLEB128(StringRef DirName, SMLoc) {
   return false;
 }
 
-Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc) {
+// Helper functions for parsing macro-like directives
+
+Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc,
+                                     MacroParameters &Parameters) {
   AsmToken EndToken, StartToken = getTok();
 
   unsigned NestLevel = 0;
@@ -3496,7 +3510,9 @@ Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc) {
     }
 
     if (Lexer.is(AsmToken::Identifier) &&
-        (getTok().getIdentifier() == ".rept")) {
+        (getTok().getIdentifier() == ".rept" ||
+         getTok().getIdentifier() == ".irp" ||
+         getTok().getIdentifier() == ".irpc")) {
       ++NestLevel;
     }
 
@@ -3525,7 +3541,6 @@ Macro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc) {
 
   // We Are Anonymous.
   StringRef Name;
-  MacroParameters Parameters;
   return new Macro(Name, Body, Parameters);
 }
 
@@ -3549,6 +3564,12 @@ void AsmParser::InstantiateMacroLikeBody(Macro *M, SMLoc DirectiveLoc,
   Lex();
 }
 
+// These macro-like directives fundamentally behave as macros but they
+// - are anonymous
+// - instantiate immediately (in multiple instances)
+
+/// ParseDirectiveRept
+/// ::= .rept count
 bool AsmParser::ParseDirectiveRept(SMLoc DirectiveLoc) {
   int64_t Count;
   if (ParseAbsoluteExpression(Count))
@@ -3564,14 +3585,14 @@ bool AsmParser::ParseDirectiveRept(SMLoc DirectiveLoc) {
   Lex();
 
   // Lex the rept definition.
-  Macro *M = ParseMacroLikeBody(DirectiveLoc);
+  MacroParameters Parameters;
+  Macro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
   if (!M)
     return true;
 
   // Macro instantiation is lexical, unfortunately. We construct a new buffer
   // to hold the macro body with substitutions.
   SmallString<256> Buf;
-  MacroParameters Parameters;
   MacroArguments A;
   raw_svector_ostream OS(Buf);
   while (Count--) {
@@ -3607,7 +3628,7 @@ bool AsmParser::ParseDirectiveIrp(SMLoc DirectiveLoc) {
   Lex();
 
   // Lex the irp definition.
-  Macro *M = ParseMacroLikeBody(DirectiveLoc);
+  Macro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
   if (!M)
     return true;
 
@@ -3656,7 +3677,7 @@ bool AsmParser::ParseDirectiveIrpc(SMLoc DirectiveLoc) {
   Lex();
 
   // Lex the irpc definition.
-  Macro *M = ParseMacroLikeBody(DirectiveLoc);
+  Macro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
   if (!M)
     return true;
 
@@ -3683,6 +3704,8 @@ bool AsmParser::ParseDirectiveIrpc(SMLoc DirectiveLoc) {
   return false;
 }
 
+/// ParseDirectiveEndr
+/// ::= .endr
 bool AsmParser::ParseDirectiveEndr(SMLoc DirectiveLoc) {
   if (ActiveMacros.empty())
     return TokError("unmatched '.endr' directive");

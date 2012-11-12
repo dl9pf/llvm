@@ -1,4 +1,4 @@
-// RUN: not llvm-mc -triple i386-unknown-unknown %s 2> %t.err | FileCheck %s
+// RUN: not llvm-mc -triple i386-apple-darwin %s 2> %t.err | FileCheck %s
 // RUN: FileCheck --check-prefix=CHECK-ERRORS %s < %t.err
 
 .macro .test0
