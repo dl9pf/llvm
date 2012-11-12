@@ -397,6 +397,10 @@ public:
       &GenericAsmParser::ParseDirectiveCFIEscape>(".cfi_escape");
     AddDirectiveHandler<
       &GenericAsmParser::ParseDirectiveCFISignalFrame>(".cfi_signal_frame");
+    AddDirectiveHandler<
+      &GenericAsmParser::ParseDirectiveCFIUndefined>(".cfi_undefined");
+    AddDirectiveHandler<
+      &GenericAsmParser::ParseDirectiveCFIRegister>(".cfi_register");
 
     // Macro directives.
     AddDirectiveHandler<&GenericAsmParser::ParseDirectiveMacrosOnOff>(
@@ -434,6 +438,8 @@ public:
   bool ParseDirectiveCFIRestore(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIEscape(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFISignalFrame(StringRef, SMLoc DirectiveLoc);
+  bool ParseDirectiveCFIUndefined(StringRef, SMLoc DirectiveLoc);
+  bool ParseDirectiveCFIRegister(StringRef, SMLoc DirectiveLoc);
 
   bool ParseDirectiveMacrosOnOff(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveMacro(StringRef, SMLoc DirectiveLoc);
@@ -3023,10 +3029,20 @@ bool GenericAsmParser::ParseDirectiveCFISections(StringRef,
 }
 
 /// ParseDirectiveCFIStartProc
-/// ::= .cfi_startproc
+/// ::= .cfi_startproc [simple]
 bool GenericAsmParser::ParseDirectiveCFIStartProc(StringRef,
                                                   SMLoc DirectiveLoc) {
-  getStreamer().EmitCFIStartProc();
+  bool Simple = false;
+
+  if (getLexer().isNot(AsmToken::EndOfStatement)) {
+    if (getLexer().isNot(AsmToken::Identifier))
+      return TokError("Expected 'simple'");
+    if (getTok().getIdentifier() != "simple")
+      return TokError("Expected 'simple'");
+    Lex();
+    Simple = true;
+  }
+  getStreamer().EmitCFIStartProc(Simple);
   return false;
 }
 
@@ -3281,6 +3297,43 @@ bool GenericAsmParser::ParseDirectiveCFISignalFrame(StringRef Directive,
                  "unexpected token in '" + Directive + "' directive");
 
   getStreamer().EmitCFISignalFrame();
+
+  return false;
+}
+
+/// ParseDirectiveCFIUndefined
+/// ::= .cfi_undefined register
+bool GenericAsmParser::ParseDirectiveCFIUndefined(StringRef Directive,
+                                                  SMLoc DirectiveLoc) {
+  int64_t Register = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register, DirectiveLoc))
+    return true;
+
+  getStreamer().EmitCFIUndefined(Register);
+
+  return false;
+}
+
+/// ParseDirectiveCFIRegister
+/// ::= .cfi_register register, register
+bool GenericAsmParser::ParseDirectiveCFIRegister(StringRef Directive,
+                                                 SMLoc DirectiveLoc) {
+  int64_t Register1 = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register1, DirectiveLoc))
+    return true;
+
+  if (getLexer().isNot(AsmToken::Comma))
+    return TokError("unexpected token in directive");
+  Lex();
+
+  int64_t Register2 = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register2, DirectiveLoc))
+    return true;
+
+  getStreamer().EmitCFIRegister(Register1, Register2);
 
   return false;
 }

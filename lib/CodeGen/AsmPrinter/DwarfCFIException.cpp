@@ -113,7 +113,7 @@ void DwarfCFIException::BeginFunction(const MachineFunction *MF) {
   if (!shouldEmitPersonality && !shouldEmitMoves)
     return;
 
-  Asm->OutStreamer.EmitCFIStartProc();
+  Asm->OutStreamer.EmitCFIStartProc(false);
 
   // Indicate personality routine, if any.
   if (!shouldEmitPersonality)

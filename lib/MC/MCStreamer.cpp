@@ -193,7 +193,7 @@ void MCStreamer::EmitCFISections(bool EH, bool Debug) {
   EmitDebugFrame = Debug;
 }
 
-void MCStreamer::EmitCFIStartProc() {
+void MCStreamer::EmitCFIStartProc(bool Simple) {
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   if (CurFrame && !CurFrame->End)
     report_fatal_error("Starting a frame before finishing the previous one!");
@@ -365,6 +365,28 @@ void MCStreamer::EmitCFISignalFrame() {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   CurFrame->IsSignalFrame = true;
+}
+
+void MCStreamer::EmitCFIUndefined(int64_t Register) {
+  EnsureValidFrame();
+//  MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
+//  MCSymbol *Label = getContext().CreateTempSymbol();
+//  EmitLabel(Label);
+//  MachineLocation Dest(Register, Offset);
+//  MachineLocation Source(Register, Offset);
+//  MCCFIInstruction Instruction(MCCFIInstruction::RelMove, Label, Dest, Source);
+//  CurFrame->Instructions.push_back(Instruction);
+}
+
+void MCStreamer::EmitCFIRegister(int64_t Register1, int64_t Register2) {
+  EnsureValidFrame();
+  MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
+  MCSymbol *Label = getContext().CreateTempSymbol();
+  EmitLabel(Label);
+  MachineLocation Dest(Register1);
+  MachineLocation Source(Register2);
+  MCCFIInstruction Instruction(MCCFIInstruction::RelMove, Label, Dest, Source);
+  CurFrame->Instructions.push_back(Instruction);
 }
 
 void MCStreamer::setCurrentW64UnwindInfo(MCWin64EHUnwindInfo *Frame) {

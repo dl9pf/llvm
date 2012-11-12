@@ -499,7 +499,7 @@ namespace llvm {
 
     virtual void EmitCompactUnwindEncoding(uint32_t CompactUnwindEncoding);
     virtual void EmitCFISections(bool EH, bool Debug);
-    void EmitCFIStartProc();
+    void EmitCFIStartProc(bool Simple);
     void EmitCFIEndProc();
     virtual void EmitCFIDefCfa(int64_t Register, int64_t Offset);
     virtual void EmitCFIDefCfaOffset(int64_t Offset);
@@ -515,6 +515,8 @@ namespace llvm {
     virtual void EmitCFIAdjustCfaOffset(int64_t Adjustment);
     virtual void EmitCFIEscape(StringRef Values);
     virtual void EmitCFISignalFrame();
+    virtual void EmitCFIUndefined(int64_t Register);
+    virtual void EmitCFIRegister(int64_t Register1, int64_t Register2);
 
     virtual void EmitWin64EHStartProc(const MCSymbol *Symbol);
     virtual void EmitWin64EHEndProc();
